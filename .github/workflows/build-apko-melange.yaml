@@ -1,12 +1,7 @@
 name: Build packages and containers with Melange and Apko
 
 on:
-  push:
-    branches:
-      - main
-  workflow_dispatch:
-  schedule:
-    - cron: '42 17 * * *'
+  workflow_call:
 
 env:
   REGISTRY: ghcr.io
