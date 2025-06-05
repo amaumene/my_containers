@@ -1,0 +1,49 @@
+name: Build packages and containers with Melange and Apko
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+  schedule:
+    - cron: '42 17 * * *'
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    environment: melange
+    permissions:
+      contents: read
+      packages: write
+      attestations: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Collect Melange and Apko config files
+        id: collect
+        run: |
+          melange_config=$(find melange -name '*.yaml' | sort | paste -sd "," -)
+          apko_config=$(find apko -name '*.yaml' | sort | paste -sd "," -)
+
+          echo "melange_config=$melange_config" >> "$GITHUB_ENV"
+          echo "apko_config=$apko_config" >> "$GITHUB_ENV"
+
+      - name: Build all Melange packages
+        uses: chainguard-dev/actions/melange-build@main
+        with:
+          multi-config: ${{ env.melange_config }}
+          archs: x86_64,aarch64
+          sign-with-temporary-key: true
+
+      - name: Build all Apko images
+        uses: chainguard-images/actions/apko-publish@main
+        with:
+          config: ${{ env.apko_config }}
+          archs: x86_64,aarch64
+          tag: ghcr.io/${{ github.repository }}:latest
+          keyring-append: ${{ github.workspace }}/melange.rsa.pub
